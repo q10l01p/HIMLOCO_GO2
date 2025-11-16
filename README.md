@@ -37,6 +37,8 @@ python3.8 -m pip install "numpy<1.24" pydelatin wandb tqdm opencv-python ipdb py
 
 modal run -d himloco_go2_train.py::main --mode train --num-envs 8192 --wandb-mode online
 
+可视化地形：python legged_gym/legged_gym/scripts/visualize_terrain.py --task go2 --vis-num-envs 64 --terrain-mode train
+
 
 在线：python legged_gym/legged_gym/scripts/train.py --num-envs 8192 --wandb-mode online
 离线：python legged_gym/legged_gym/scripts/train.py --num-envs 8192 --wandb-mode offline

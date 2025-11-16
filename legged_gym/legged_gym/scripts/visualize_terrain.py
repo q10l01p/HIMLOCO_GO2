@@ -61,6 +61,12 @@ def _parse_visualization_args():
         default=5.0,
         help="跟随镜头距机器人质心的距离（米）。",
     )
+    parser.add_argument(
+        "--terrain-mode",
+        choices=("train", "random"),
+        default="train",
+        help="地形生成模式：train 表示严格沿用训练配置，random 表示纯随机地形。",
+    )
     vis_args, remaining = parser.parse_known_args()
     sys.argv = [sys.argv[0]] + remaining
     return vis_args
@@ -69,11 +75,13 @@ def _parse_visualization_args():
 def _configure_env_cfg(env_cfg, vis_args):
     if vis_args.vis_num_envs is not None:
         env_cfg.env.num_envs = vis_args.vis_num_envs
-        env_cfg.terrain.curriculum = False
-        env_cfg.terrain.selected = False
         env_cfg.terrain.max_init_terrain_level = min(
             env_cfg.terrain.max_init_terrain_level, env_cfg.terrain.num_rows - 1
         )
+    if vis_args.terrain_mode == "random":
+        # 某些调试场景下仍可能希望快速查看随机地形，保留旧逻辑通过参数开启。
+        env_cfg.terrain.curriculum = False
+        env_cfg.terrain.selected = False
 
 
 def _maybe_follow_actor(env, follow_env, distance):
@@ -102,7 +110,7 @@ def main():
     actions = torch.zeros(env.num_envs, env.num_actions, device=env.device)
 
     print(
-        f"[terrain-viewer] task={args.task}, num_envs={env.num_envs}, follow_env={vis_args.follow_env}, "
+        f"[terrain-viewer] task={args.task}, num_envs={env.num_envs}, terrain_mode={vis_args.terrain_mode}, follow_env={vis_args.follow_env}, "
         f"max_steps={'inf' if vis_args.max_steps < 0 else vis_args.max_steps}"
     )
 
