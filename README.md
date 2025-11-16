@@ -31,3 +31,9 @@
 5.	Demo演示
 
 - 观看项目演示视频：[点击这里](https://www.bilibili.com/video/BV1CSXNYbEn4/?spm_id_from=333.1387.upload.video_card.click&vd_source=032f2f8aec6b50da9d8cb77f6a494111)
+
+
+python3.8 -m pip install "numpy<1.24" pydelatin wandb tqdm opencv-python ipdb pyfqmr flask
+
+modal run -d himloco_go2_train.py::main --mode train --num-envs 8192
+

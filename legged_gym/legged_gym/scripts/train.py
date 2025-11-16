@@ -3,7 +3,7 @@
 #   该脚本是 legged_gym 工程中的统一训练入口脚本，用于：
 #   1）根据命令行参数构建指定任务的 Isaac Gym 仿真环境；
 #   2）通过 task_registry 创建对应的强化学习算法 Runner（例如 PPO）；
-#   3）在本地启动训练主循环，并可选地以 wandb 离线模式记录训练日志。
+#   3）在本地启动训练主循环，并可选地以 wandb 在线模式记录训练日志。
 #
 # 核心数据输入：
 #   - 命令行参数（get_args()）：
@@ -19,9 +19,9 @@
 #   - 训练产出（由算法 Runner 管理）：
 #       * 策略网络权重与检查点文件（通常保存在 log_dir 目录中）；
 #       * 训练过程中的标量指标（例如 reward、episode length、loss 值等）；
-#   - wandb 日志（可选，离线模式）：
-#       * 若安装了 wandb 且 log_dir 有效，则将超参配置与训练指标写入本地 wandb 缓存，
-#         后续可通过 `wandb sync` 上传到云端进行可视化与对比分析。
+#   - wandb 日志（可选，在线模式）：
+#       * 若安装了 wandb，则会实时将超参配置与训练指标同步到云端的 wandb 项目，
+#         方便即时可视化与团队协作。
 # =============================================================================
 
 import numpy as np
@@ -47,7 +47,7 @@ except ImportError:
 def _init_wandb_run(args, headless: bool, log_dir: Optional[str]):
     """
     功能描述：
-        在本地以“离线模式”初始化一个 wandb 训练 run，用于统一记录实验配置与训练指标。
+        以在线模式初始化一个 wandb 训练 run，用于统一记录实验配置与训练指标。
         若 wandb 不可用或初始化失败，则优雅退化为不使用 wandb 的训练流程。
 
     参数说明：
@@ -59,40 +59,35 @@ def _init_wandb_run(args, headless: bool, log_dir: Optional[str]):
             - 含义：当前训练是否以无界面仿真模式进行（headless 模式），
                     该信息写入 wandb config 用于实验复现。
         log_dir (Optional[str]):
-            - 含义：本地日志目录，用于存放 wandb 的离线缓存文件。
-            - 约束：若为 None，说明上层未配置日志目录，此时不启用 wandb。
+            - 含义：本地日志目录，用于存放 wandb 在同步过程中产生的临时文件。
+            - 约束：可为 None，此时 wandb 使用默认缓存目录。
 
     返回值说明：
         - 返回值类型：wandb.sdk.wandb_run.Run 或 None
         - 语义：
             * 成功初始化时，返回 wandb 的 run 对象；
-            * 在 wandb 包缺失、log_dir 无效或初始化异常时，返回 None，
+            * 在 wandb 包缺失或初始化异常时，返回 None，
               保证训练主流程不因为监控系统出错而中断。
 
     核心处理流程：
-        1. 先检查 wandb 包和日志目录是否可用，不满足条件则直接退出（返回 None）。
-        2. 将 wandb 设置为离线模式（WANDB_MODE=offline），以减少对网络环境的依赖，
-           同时确保所有日志首先缓存在本地。
-        3. 准备 wandb 所需的项目名称、run 名称与 config 字典，将 task、实验名、设备等
+        1. 先检查 wandb 包是否可用，不满足条件则直接退出（返回 None）。
+        2. 可选地指定 WANDB_DIR，方便集中管理在线日志同步产生的缓存。
+        3. 将 wandb 设置为在线模式（WANDB_MODE=online），使指标实时上传云端。
+        4. 准备 wandb 所需的项目名称、run 名称与 config 字典，将 task、实验名、设备等
            关键信息写入 config，用于后续分析和复现。
-        4. 调用 wandb.init 创建 run；若过程中出现异常，则打印友好提示，
+        5. 调用 wandb.init 创建 run；若过程中出现异常，则打印友好提示，
            并返回 None，使上层训练逻辑可以继续执行但不记录 wandb。
     """
     if wandb is None:
-        print("[wandb] 未安装 wandb，跳过离线日志记录。")
-        return None
-
-    if log_dir is None:
-        # 这里选择在日志目录缺失时不使用 wandb，而不是临时创建默认目录，
-        # 主要是为了避免日志散落到难以管理的位置，强制用户显式配置 log_dir。
-        print("[wandb] 未找到日志目录，跳过 wandb 初始化。")
+        print("[wandb] 未安装 wandb，跳过在线日志记录。")
         return None
 
     # 使用环境变量配置 wandb 的工作模式与输出目录，而不是在代码中硬编码路径，
     # 这样可以保持与 wandb CLI 工具行为一致，便于运维与部署。
-    os.environ.setdefault("WANDB_MODE", "offline")
-    os.makedirs(log_dir, exist_ok=True)
-    os.environ["WANDB_DIR"] = log_dir
+    if log_dir is not None:
+        os.makedirs(log_dir, exist_ok=True)
+        os.environ["WANDB_DIR"] = log_dir
+    os.environ.setdefault("WANDB_MODE", "online")
 
     project = os.environ.get("WANDB_PROJECT", "legged_gym")
     # 若用户未提供 run_name，则自动拼接 task + 时间戳，保证每次运行都有唯一标识，
@@ -246,7 +241,7 @@ def train(args, headless=True):
         raise
     finally:
         # 无论训练成功与否，都要确保正确关闭 wandb run：
-        # - 避免本地离线日志文件处于不一致状态；
+        # - 避免在线日志记录产生不完整的会话；
         # - 防止进程退出时 wandb 仍在后台刷新导致资源泄漏。
         if run is not None:
             run.finish()
