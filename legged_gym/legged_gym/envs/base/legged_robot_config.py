@@ -102,8 +102,8 @@ class LeggedRobotCfg(BaseConfig):
         terrain_length = 8.
         terrain_width = 8.
         # 整张地形由 num_rows x num_cols 个子地形块组成
-        num_rows = 10  # number of terrain rows (levels)
-        num_cols = 20  # number of terrain cols (types)
+        num_rows = 20  # number of terrain rows (levels)
+        num_cols = 30  # number of terrain cols (types)
         # 不同地形类型（斜坡、楼梯等）的占比：
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         terrain_proportions = [0.1, 0.2, 0.3, 0.3, 0.1]
