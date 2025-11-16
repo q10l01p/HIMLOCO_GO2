@@ -32,6 +32,7 @@ import numpy as np
 import os
 import traceback
 from datetime import datetime
+from typing import Optional
 
 import isaacgym
 from legged_gym.envs import *
@@ -44,13 +45,19 @@ except ImportError:
     wandb = None
 
 
-def _init_wandb_run(args, headless: bool):
+def _init_wandb_run(args, headless: bool, log_dir: Optional[str]):
     """Create a wandb run in offline mode if the package is available."""
     if wandb is None:
         print("[wandb] 未安装 wandb，跳过离线日志记录。")
         return None
 
+    if log_dir is None:
+        print("[wandb] 未找到日志目录，跳过 wandb 初始化。")
+        return None
+
     os.environ.setdefault("WANDB_MODE", "offline")
+    os.makedirs(log_dir, exist_ok=True)
+    os.environ["WANDB_DIR"] = log_dir
     project = os.environ.get("WANDB_PROJECT", "legged_gym")
     run_name = args.run_name or f"{args.task}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     config = {
@@ -63,7 +70,7 @@ def _init_wandb_run(args, headless: bool):
     }
     config = {k: v for k, v in config.items() if v is not None}
     try:
-        return wandb.init(project=project, name=run_name, reinit=True, config=config)
+        return wandb.init(project=project, name=run_name, reinit=True, config=config, dir=log_dir)
     except Exception as wandb_error:
         print(f"[wandb] 初始化失败（{wandb_error}），将继续训练但不记录 wandb。")
         return None
@@ -86,10 +93,12 @@ def _log_wandb_error(run, error: Exception, tb: str):
 def train(args, headless=True):
     args.headless = headless
     args.resume = False
-    run = _init_wandb_run(args, headless)
+    env, env_cfg = task_registry.make_env(name=args.task, args=args)
+    ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args)
+    run = _init_wandb_run(args, headless, getattr(ppo_runner, "log_dir", None))
+    if run is not None:
+        ppo_runner.wandb_run = run
     try:
-        env, env_cfg = task_registry.make_env(name=args.task, args=args)
-        ppo_runner, train_cfg = task_registry.make_alg_runner(env=env, name=args.task, args=args, wandb_run=run)
         ppo_runner.learn(num_learning_iterations=train_cfg.runner.max_iterations, init_at_random_ep_len=True)
         if run is not None:
             run.summary["status"] = "success"
