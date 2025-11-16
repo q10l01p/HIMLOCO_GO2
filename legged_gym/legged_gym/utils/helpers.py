@@ -101,19 +101,69 @@ def parse_sim_params(args, cfg):
 
     return sim_params
 
+def _ensure_gpu_selection(args):
+    gpu_id = getattr(args, "gpu_id", None)
+    if gpu_id is None:
+        if not torch.cuda.is_available():
+            raise RuntimeError("未检测到可用 GPU，请通过 --gpu_id 指定训练使用的显卡。")
+        device_count = torch.cuda.device_count()
+        print("请选择训练所用的 GPU：")
+        for idx in range(device_count):
+            print(f"[{idx}] {torch.cuda.get_device_name(idx)}")
+        while True:
+            user_input = input(f"输入 GPU 编号 [0-{device_count-1}]: ").strip()
+            if not user_input:
+                print("请输入有效的编号。")
+                continue
+            try:
+                gpu_id = int(user_input)
+            except ValueError:
+                print("仅接受数字编号，请重新输入。")
+                continue
+            if 0 <= gpu_id < device_count:
+                break
+            print("编号超出范围，请重新输入。")
+        args.gpu_id = gpu_id
+    args.rl_device = f"cuda:{args.gpu_id}"
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
+    return args
+
 def get_load_path(root, load_run=-1, checkpoint=-1):
     try:
-        runs = os.listdir(root)
-        #TODO sort by date to handle change of month
-        runs.sort()
-        if 'exported' in runs: runs.remove('exported')
-        last_run = os.path.join(root, runs[-1])
+        entries = os.listdir(root)
     except:
         raise ValueError("No runs in this directory: " + root)
+    
+    run_dirs = []
+    standalone_models = []
+    for entry in entries:
+        if entry == 'exported':
+            continue
+        full_path = os.path.join(root, entry)
+        if os.path.isdir(full_path):
+            run_dirs.append(full_path)
+        elif 'model' in entry and os.path.isfile(full_path):
+            standalone_models.append(full_path)
+
+    run_dirs.sort()
+    standalone_models.sort(key=lambda m: '{0:0>15}'.format(os.path.basename(m)))
+
     if load_run==-1:
-        load_run = last_run
+        if run_dirs:
+            load_run = run_dirs[-1]
+        elif standalone_models:
+            return standalone_models[-1]
+        else:
+            raise ValueError("No runs in this directory: " + root)
     else:
-        load_run = os.path.join(root, load_run)
+        candidate = load_run
+        if not os.path.isabs(candidate):
+            candidate = os.path.join(root, candidate)
+        if os.path.isfile(candidate):
+            return candidate
+        if not os.path.isdir(candidate):
+            raise ValueError("Invalid 'load_run' path: " + candidate)
+        load_run = candidate
 
     if checkpoint==-1:
         models = [file for file in os.listdir(load_run) if 'model' in file]
@@ -165,6 +215,7 @@ def get_args():
         {"name": "--headless", "action": "store_true", "default": False, "help": "Force display off at all times"},
         {"name": "--horovod", "action": "store_true", "default": False, "help": "Use horovod for multi-gpu training"},
         {"name": "--rl_device", "type": str, "default": "cuda:0", "help": 'Device used by the RL algorithm, (cpu, gpu, cuda:0, cuda:1 etc..)'},
+        {"name": "--gpu_id", "type": int, "help": "GPU index for training (overrides --rl_device)."},
         {"name": "--num_envs", "type": int, "help": "Number of environments to create. Overrides config file if provided."},
         {"name": "--seed", "type": int, "help": "Random seed. Overrides config file if provided."},
         {"name": "--max_iterations", "type": int, "help": "Maximum number of training iterations. Overrides config file if provided."},
@@ -173,6 +224,8 @@ def get_args():
     args = gymutil.parse_arguments(
         description="RL Policy",
         custom_parameters=custom_parameters)
+
+    args = _ensure_gpu_selection(args)
 
     # name allignment
     # args.sim_device_id = args.compute_device_id

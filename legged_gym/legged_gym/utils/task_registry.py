@@ -101,7 +101,7 @@ class TaskRegistry():
                             headless=args.headless)
         return env, env_cfg
 
-    def make_alg_runner(self, env, name=None, args=None, train_cfg=None, log_root="default") -> Tuple[OnPolicyRunner, LeggedRobotCfgPPO]:
+    def make_alg_runner(self, env, name=None, args=None, train_cfg=None, log_root="default", wandb_run=None) -> Tuple[OnPolicyRunner, LeggedRobotCfgPPO]:
         """ Creates the training algorithm  either from a registered namme or from the provided config file.
 
         Args:
@@ -144,7 +144,15 @@ class TaskRegistry():
             log_dir = os.path.join(log_root, datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name)
         
         train_cfg_dict = class_to_dict(train_cfg)
-        runner = HIMOnPolicyRunner(env, train_cfg_dict, log_dir, device=args.rl_device)
+        runner_class_name = getattr(train_cfg, "runner_class_name", "HIMOnPolicyRunner")
+        runner_cls_map = {
+            "HIMOnPolicyRunner": HIMOnPolicyRunner,
+            "OnPolicyRunner": OnPolicyRunner,
+        }
+        runner_cls = runner_cls_map.get(runner_class_name)
+        if runner_cls is None:
+            raise ValueError(f"Unsupported runner class: {runner_class_name}")
+        runner = runner_cls(env, train_cfg_dict, log_dir, device=args.rl_device, wandb_run=wandb_run)
         #save resume path before creating a new log_dir
         resume = train_cfg.runner.resume
         if resume:
