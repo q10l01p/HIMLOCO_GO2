@@ -128,11 +128,37 @@ def _ensure_gpu_selection(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
     return args
 
+def _ensure_num_envs(args):
+    num_envs = getattr(args, "num_envs", None)
+    if num_envs is not None:
+        if num_envs <= 0:
+            raise ValueError("num_envs 必须为正整数。")
+        return args
+
+    while True:
+        user_input = input("请输入模拟的机器人数量 num_envs（正整数）: ").strip()
+        if not user_input:
+            print("输入为空，请重新输入。")
+            continue
+        try:
+            num_envs = int(user_input)
+        except ValueError:
+            print("仅接受整数，请重新输入。")
+            continue
+        if num_envs <= 0:
+            print("需要大于 0 的整数，请重新输入。")
+            continue
+        args.num_envs = num_envs
+        break
+    return args
+
 def get_load_path(root, load_run=-1, checkpoint=-1):
+    if root is None:
+        raise ValueError("加载模型时需要提供日志目录 root。")
     try:
         entries = os.listdir(root)
-    except:
-        raise ValueError("No runs in this directory: " + root)
+    except Exception as err:
+        raise ValueError("No runs in this directory: " + str(root)) from err
     
     run_dirs = []
     standalone_models = []
@@ -237,6 +263,7 @@ def get_args():
         custom_parameters=custom_parameters)
 
     args = _ensure_gpu_selection(args)
+    args = _ensure_num_envs(args)
 
     # name allignment
     # args.sim_device_id = args.compute_device_id

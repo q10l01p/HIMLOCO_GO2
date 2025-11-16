@@ -42,7 +42,10 @@ import torch
 def play(args, x_vel=1.0, y_vel=0.0, yaw_vel=0.0):
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
+    if args.num_envs is not None:
+        env_cfg.env.num_envs = args.num_envs
+    else:
+        env_cfg.env.num_envs = min(env_cfg.env.num_envs, 50)
     env_cfg.terrain.num_rows = 10
     env_cfg.terrain.num_cols = 8
     env_cfg.terrain.curriculum = True
@@ -133,4 +136,4 @@ if __name__ == '__main__':
     RECORD_FRAMES = False
     MOVE_CAMERA = False
     args = get_args()
-    play(args, x_vel=1.0, y_vel=0.0, yaw_vel=0.0)
+    play(args, x_vel=2.0, y_vel=0.0, yaw_vel=0.0)

@@ -135,15 +135,17 @@ class TaskRegistry():
         # override cfg from args (if specified)
         _, train_cfg = update_cfg_from_args(None, train_cfg, args)
 
-        run_folder = datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name
-        if log_root == "default":
-            log_root = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name)
-        if log_root is not None:
+        default_logs_root = os.path.join(LEGGED_GYM_ROOT_DIR, 'logs', train_cfg.runner.experiment_name)
+        run_folder = None
+        if log_root is None:
+            log_dir = None
+        else:
+            run_folder = datetime.now().strftime('%b%d_%H-%M-%S') + '_' + train_cfg.runner.run_name
+            if log_root == "default":
+                log_root = default_logs_root
             os.makedirs(log_root, exist_ok=True)
             log_dir = os.path.join(log_root, run_folder)
             os.makedirs(log_dir, exist_ok=True)
-        else:
-            log_dir = None
         
         train_cfg_dict = class_to_dict(train_cfg)
         runner_class_name = getattr(train_cfg, "runner_class_name", "HIMOnPolicyRunner")
@@ -155,11 +157,12 @@ class TaskRegistry():
         if runner_cls is None:
             raise ValueError(f"Unsupported runner class: {runner_class_name}")
         runner = runner_cls(env, train_cfg_dict, log_dir, device=args.rl_device, wandb_run=wandb_run)
-        #save resume path before creating a new log_dir
         resume = train_cfg.runner.resume
+        resume_root = log_root if log_root not in (None, "default") else default_logs_root
         if resume:
-            # load previously trained model
-            resume_path = get_load_path(log_root, load_run=train_cfg.runner.load_run, checkpoint=train_cfg.runner.checkpoint)
+            resume_path = getattr(train_cfg.runner, "resume_path", None)
+            if resume_path is None:
+                resume_path = get_load_path(resume_root, load_run=train_cfg.runner.load_run, checkpoint=train_cfg.runner.checkpoint)
             print(f"Loading model from: {resume_path}")
             runner.load(resume_path)
         return runner, train_cfg
