@@ -148,9 +148,19 @@ def get_load_path(root, load_run=-1, checkpoint=-1):
     run_dirs.sort()
     standalone_models.sort(key=lambda m: '{0:0>15}'.format(os.path.basename(m)))
 
+    def _sorted_models(path):
+        models = [file for file in os.listdir(path) if 'model' in file]
+        models.sort(key=lambda m: '{0:0>15}'.format(m))
+        return models
+
     if load_run==-1:
-        if run_dirs:
-            load_run = run_dirs[-1]
+        selected_dir = None
+        for candidate_dir in reversed(run_dirs):
+            if _sorted_models(candidate_dir):
+                selected_dir = candidate_dir
+                break
+        if selected_dir is not None:
+            load_run = selected_dir
         elif standalone_models:
             return standalone_models[-1]
         else:
@@ -166,8 +176,9 @@ def get_load_path(root, load_run=-1, checkpoint=-1):
         load_run = candidate
 
     if checkpoint==-1:
-        models = [file for file in os.listdir(load_run) if 'model' in file]
-        models.sort(key=lambda m: '{0:0>15}'.format(m))
+        models = _sorted_models(load_run)
+        if not models:
+            raise ValueError("No model checkpoints found in directory: " + load_run)
         model = models[-1]
     else:
         model = "model_{}.pt".format(checkpoint) 
