@@ -84,6 +84,7 @@ def _normalize_cli_aliases():
     alias_map = {
         '--gpu-index': '--gpu_index',
         '--num-envs': '--num_envs',
+        '--wandb-mode': '--wandb_mode',
     }
     for idx, arg in enumerate(sys.argv):
         if arg in alias_map:
@@ -218,6 +219,7 @@ def get_args():
         {"name": "--num_envs", "type": int, "help": "Number of environments to create. Overrides config file if provided."},
         {"name": "--seed", "type": int, "help": "Random seed. Overrides config file if provided."},
         {"name": "--max_iterations", "type": int, "help": "Maximum number of training iterations. Overrides config file if provided."},
+        {"name": "--wandb_mode", "type": str, "default": "online", "help": "W&B logging mode: online, offline, or disabled."},
     ]
     _normalize_cli_aliases()
     # parse arguments
@@ -233,6 +235,12 @@ def get_args():
         os.environ.setdefault("CUDA_VISIBLE_DEVICES", str(args.gpu_id))
     if getattr(args, "num_envs", None) is not None and args.num_envs <= 0:
         raise ValueError("--num_envs must be a positive integer.")
+    wandb_mode = getattr(args, "wandb_mode", "online")
+    if wandb_mode is not None:
+        wandb_mode = wandb_mode.lower()
+        if wandb_mode not in ("online", "offline", "disabled"):
+            raise ValueError("--wandb_mode must be one of: online, offline, disabled.")
+        args.wandb_mode = wandb_mode
     # name allignment
     # args.sim_device_id = args.compute_device_id
     args.sim_device = args.rl_device

@@ -1,0 +1,64 @@
+_wandb:
+    value:
+        cli_version: 0.23.0
+        e:
+            oeenc6rqhbkrykwvw37ay74q3eup9tcd:
+                codePath: legged_gym/legged_gym/scripts/train.py
+                codePathLocal: legged_gym/legged_gym/scripts/train.py
+                cpu_count: 16
+                cpu_count_logical: 32
+                cudaVersion: "12.2"
+                disk:
+                    /:
+                        total: "603306713088"
+                        used: "375106961408"
+                email: 0413znj@gmail.com
+                executable: /home/jie/miniconda3/envs/robodog_gym/bin/python
+                git:
+                    commit: 61be876886e51a5ef270b712ed53fd8c0f1c828a
+                    remote: https://github.com/q10l01p/HIMLOCO_GO2.git
+                gpu: NVIDIA GeForce RTX 4060 Laptop GPU
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 3072
+                      memoryTotal: "8585740288"
+                      name: NVIDIA GeForce RTX 4060 Laptop GPU
+                      uuid: GPU-fbb6f605-c22d-faed-911a-aa8c1c742bc9
+                host: jie
+                memory:
+                    total: "33309163520"
+                os: Linux-5.15.0-139-generic-x86_64-with-glibc2.17
+                program: legged_gym/legged_gym/scripts/train.py
+                python: CPython 3.8.16
+                root: /home/jie/Code/Unitree/HIMLOCO_GO2/legged_gym/logs/rough_go2/Nov16_20-18-46_
+                startedAt: "2025-11-16T12:18:50.580249Z"
+                writerId: oeenc6rqhbkrykwvw37ay74q3eup9tcd
+        m: []
+        python_version: 3.8.16
+        t:
+            "1":
+                - 1
+                - 105
+            "2":
+                - 1
+                - 105
+            "3":
+                - 2
+                - 13
+                - 16
+                - 61
+            "4": 3.8.16
+            "5": 0.23.0
+            "10":
+                - 20
+            "12": 0.23.0
+            "13": linux-x86_64
+headless:
+    value: true
+rl_device:
+    value: cuda:0
+run_name:
+    value: go2-20251116-201846
+task:
+    value: go2

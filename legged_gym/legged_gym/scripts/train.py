@@ -35,6 +35,8 @@ from legged_gym.envs import *
 from legged_gym.utils import get_args, task_registry
 import torch
 
+WANDB_API_KEY_DEFAULT = "5ecc38cd3b04945a08cc5aea50e6a0d1bd6cc318"
+
 try:
     import wandb
 except ImportError:
@@ -71,25 +73,34 @@ def _init_wandb_run(args, headless: bool, log_dir: Optional[str]):
 
     核心处理流程：
         1. 先检查 wandb 包是否可用，不满足条件则直接退出（返回 None）。
-        2. 可选地指定 WANDB_DIR，方便集中管理在线日志同步产生的缓存。
-        3. 将 wandb 设置为在线模式（WANDB_MODE=online），使指标实时上传云端。
-        4. 准备 wandb 所需的项目名称、run 名称与 config 字典，将 task、实验名、设备等
-           关键信息写入 config，用于后续分析和复现。
+        2. 根据 --wandb_mode 指定在线、离线或禁用模式；如为 offline，则日志仅缓存在本地。
+        3. 设置 WANDB_API_KEY（如未配置），确保可以顺利登陆 wandb 服务。
+        4. 如提供 log_dir，则让 wandb 在该目录下缓存同步文件，方便统一管理。
         5. 调用 wandb.init 创建 run；若过程中出现异常，则打印友好提示，
            并返回 None，使上层训练逻辑可以继续执行但不记录 wandb。
     """
     if wandb is None:
         print("[wandb] 未安装 wandb，跳过在线日志记录。")
         return None
+    wandb_mode = getattr(args, "wandb_mode", "online")
+    if wandb_mode == "disabled":
+        print("[wandb] 已禁用 wandb 日志记录。")
+        return None
+    if not os.environ.get("WANDB_API_KEY"):
+        os.environ["WANDB_API_KEY"] = WANDB_API_KEY_DEFAULT
 
     # 使用环境变量配置 wandb 的工作模式与输出目录，而不是在代码中硬编码路径，
     # 这样可以保持与 wandb CLI 工具行为一致，便于运维与部署。
     if log_dir is not None:
         os.makedirs(log_dir, exist_ok=True)
         os.environ["WANDB_DIR"] = log_dir
-    os.environ.setdefault("WANDB_MODE", "online")
+    if wandb_mode == "offline":
+        os.environ["WANDB_MODE"] = "offline"
+    else:
+        os.environ["WANDB_MODE"] = "online"
+    print(f"[wandb] 当前模式: {wandb_mode}.")
 
-    project = os.environ.get("WANDB_PROJECT", "legged_gym")
+    project = os.environ.get("WANDB_PROJECT", "HIMLOCO_GO2")  # 可通过环境变量覆盖默认项目名。
     # 若用户未提供 run_name，则自动拼接 task + 时间戳，保证每次运行都有唯一标识，
     # 便于后续在 wandb 页面区分不同实验。
     run_name = args.run_name or f"{args.task}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
@@ -158,6 +169,18 @@ def _log_wandb_error(run, error: Exception, tb: str):
     run.summary["status"] = "error"
     run.summary["traceback"] = tb
 
+def _print_training_overview(args, env_cfg):
+    """
+    在开始训练前输出关键训练参数，方便确认当前实验设置。
+    """
+    device = getattr(args, "rl_device", "unknown")
+    env_section = getattr(env_cfg, "env", None)
+    num_envs = getattr(env_section, "num_envs", "unknown")
+
+    print("\n========== 训练配置概览 ==========")
+    print(f"RL 设备: {device}")
+    print(f"并行环境数量 (num_envs): {num_envs}")
+    print("==================================\n")
 
 def train(args, headless=True):
     """
@@ -219,6 +242,9 @@ def train(args, headless=True):
         # 将 wandb run 挂载到 Runner 上，使 Runner 内部可以在训练过程中随时记录指标，
         # 避免到处传递 run 或在多个模块间耦合 wandb 依赖。
         ppo_runner.wandb_run = run
+
+    # 在进入训练循环前输出一次关键信息，帮助用户确认实验设置。
+    _print_training_overview(args, env_cfg)
 
     try:
         # 进入强化学习训练主循环：

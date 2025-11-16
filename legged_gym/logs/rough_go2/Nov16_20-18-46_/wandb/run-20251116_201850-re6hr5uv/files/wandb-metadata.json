@@ -1,0 +1,40 @@
+{
+  "os": "Linux-5.15.0-139-generic-x86_64-with-glibc2.17",
+  "python": "CPython 3.8.16",
+  "startedAt": "2025-11-16T12:18:50.580249Z",
+  "program": "legged_gym/legged_gym/scripts/train.py",
+  "codePath": "legged_gym/legged_gym/scripts/train.py",
+  "codePathLocal": "legged_gym/legged_gym/scripts/train.py",
+  "git": {
+    "remote": "https://github.com/q10l01p/HIMLOCO_GO2.git",
+    "commit": "61be876886e51a5ef270b712ed53fd8c0f1c828a"
+  },
+  "email": "0413znj@gmail.com",
+  "root": "/home/jie/Code/Unitree/HIMLOCO_GO2/legged_gym/logs/rough_go2/Nov16_20-18-46_",
+  "host": "jie",
+  "executable": "/home/jie/miniconda3/envs/robodog_gym/bin/python",
+  "cpu_count": 16,
+  "cpu_count_logical": 32,
+  "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "603306713088",
+      "used": "375106961408"
+    }
+  },
+  "memory": {
+    "total": "33309163520"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+      "memoryTotal": "8585740288",
+      "cudaCores": 3072,
+      "architecture": "Ada",
+      "uuid": "GPU-fbb6f605-c22d-faed-911a-aa8c1c742bc9"
+    }
+  ],
+  "cudaVersion": "12.2",
+  "writerId": "oeenc6rqhbkrykwvw37ay74q3eup9tcd"
+}
