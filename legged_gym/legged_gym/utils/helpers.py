@@ -33,6 +33,7 @@ import copy
 import torch
 import numpy as np
 import random
+import sys
 from isaacgym import gymapi
 from isaacgym import gymutil
 import torch.nn.functional as F
@@ -77,6 +78,17 @@ def set_seed(seed):
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
+
+def _normalize_cli_aliases():
+    """允许命令行中使用带连字符的别名（例如 --gpu-index）。"""
+    alias_map = {
+        '--gpu-index': '--gpu_index',
+        '--num-envs': '--num_envs',
+    }
+    for idx, arg in enumerate(sys.argv):
+        if arg in alias_map:
+            sys.argv[idx] = alias_map[arg]
+
 def parse_sim_params(args, cfg):
     # code from Isaac Gym Preview 2
     # initialize sim params
@@ -100,57 +112,6 @@ def parse_sim_params(args, cfg):
         sim_params.physx.num_threads = args.num_threads
 
     return sim_params
-
-def _ensure_gpu_selection(args):
-    gpu_id = getattr(args, "gpu_id", None)
-    if gpu_id is None:
-        if not torch.cuda.is_available():
-            raise RuntimeError("未检测到可用 GPU，请通过 --gpu_id 指定训练使用的显卡。")
-        device_count = torch.cuda.device_count()
-        print("请选择训练所用的 GPU：")
-        for idx in range(device_count):
-            print(f"[{idx}] {torch.cuda.get_device_name(idx)}")
-        while True:
-            user_input = input(f"输入 GPU 编号 [0-{device_count-1}]: ").strip()
-            if not user_input:
-                print("请输入有效的编号。")
-                continue
-            try:
-                gpu_id = int(user_input)
-            except ValueError:
-                print("仅接受数字编号，请重新输入。")
-                continue
-            if 0 <= gpu_id < device_count:
-                break
-            print("编号超出范围，请重新输入。")
-        args.gpu_id = gpu_id
-    args.rl_device = f"cuda:{args.gpu_id}"
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
-    return args
-
-def _ensure_num_envs(args):
-    num_envs = getattr(args, "num_envs", None)
-    if num_envs is not None:
-        if num_envs <= 0:
-            raise ValueError("num_envs 必须为正整数。")
-        return args
-
-    while True:
-        user_input = input("请输入模拟的机器人数量 num_envs（正整数）: ").strip()
-        if not user_input:
-            print("输入为空，请重新输入。")
-            continue
-        try:
-            num_envs = int(user_input)
-        except ValueError:
-            print("仅接受整数，请重新输入。")
-            continue
-        if num_envs <= 0:
-            print("需要大于 0 的整数，请重新输入。")
-            continue
-        args.num_envs = num_envs
-        break
-    return args
 
 def get_load_path(root, load_run=-1, checkpoint=-1):
     if root is None:
@@ -258,6 +219,7 @@ def get_args():
         {"name": "--seed", "type": int, "help": "Random seed. Overrides config file if provided."},
         {"name": "--max_iterations", "type": int, "help": "Maximum number of training iterations. Overrides config file if provided."},
     ]
+    _normalize_cli_aliases()
     # parse arguments
     args = gymutil.parse_arguments(
         description="RL Policy",
@@ -266,10 +228,11 @@ def get_args():
     gpu_index = getattr(args, "gpu_index", None)
     if getattr(args, "gpu_id", None) is None and gpu_index is not None:
         args.gpu_id = gpu_index
-
-    args = _ensure_gpu_selection(args)
-    args = _ensure_num_envs(args)
-
+    if getattr(args, "gpu_id", None) is not None:
+        args.rl_device = f"cuda:{args.gpu_id}"
+        os.environ.setdefault("CUDA_VISIBLE_DEVICES", str(args.gpu_id))
+    if getattr(args, "num_envs", None) is not None and args.num_envs <= 0:
+        raise ValueError("--num_envs must be a positive integer.")
     # name allignment
     # args.sim_device_id = args.compute_device_id
     args.sim_device = args.rl_device
