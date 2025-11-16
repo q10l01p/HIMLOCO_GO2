@@ -97,13 +97,13 @@ class LeggedRobotCfg(BaseConfig):
         selected = False  # select a unique terrain type and pass all arguments
         terrain_kwargs = None  # Dict of arguments for selected terrain
         # 课程学习起始难度等级（越大越难），后续会随训练进展进行调整
-        max_init_terrain_level = 8  # starting curriculum state
+        max_init_terrain_level = 5  # starting curriculum state
         # 单个子地形（对应一个 env）的长宽（米）
         terrain_length = 8.
         terrain_width = 8.
         # 整张地形由 num_rows x num_cols 个子地形块组成
-        num_rows = 20  # number of terrain rows (levels)
-        num_cols = 40  # number of terrain cols (types)
+        num_rows = 10  # number of terrain rows (levels)
+        num_cols = 20  # number of terrain cols (types)
         # 不同地形类型（斜坡、楼梯等）的占比：
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         terrain_proportions = [0.1, 0.2, 0.3, 0.3, 0.1]
