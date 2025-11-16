@@ -262,6 +262,10 @@ def get_args():
     args = gymutil.parse_arguments(
         description="RL Policy",
         custom_parameters=custom_parameters)
+    
+    gpu_index = getattr(args, "gpu_index", None)
+    if getattr(args, "gpu_id", None) is None and gpu_index is not None:
+        args.gpu_id = gpu_index
 
     args = _ensure_gpu_selection(args)
     args = _ensure_num_envs(args)
